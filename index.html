@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>String Reverser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Syne"', 'sans-serif'],
+            mono: ['"DM Mono"', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    :root {
+      --accent: #c8ff2e;
+      --surface: #111113;
+      --surface-raised: #19191d;
+      --border: rgba(255,255,255,.07);
+    }
+
+    body {
+      background: var(--surface);
+      min-height: 100dvh;
+    }
+
+    /* Noise grain */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      opacity: .035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Accent blob */
+    .blob {
+      position: fixed;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(200,255,46,.10), transparent 70%);
+      filter: blur(80px);
+      top: -120px;
+      right: -80px;
+      z-index: 0;
+      animation: drift 12s ease-in-out infinite alternate;
+    }
+    @keyframes drift {
+      to { transform: translate(-40px, 60px) scale(1.15); }
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface-raised);
+      border: 1px solid var(--border);
+    }
+
+    /* Input field */
+    .input-field {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      caret-color: var(--accent);
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .input-field:focus {
+      outline: none;
+      border-color: rgba(200,255,46,.35);
+      box-shadow: 0 0 0 3px rgba(200,255,46,.08), 0 0 40px rgba(200,255,46,.05);
+    }
+
+    /* Reverse button */
+    .btn-reverse {
+      background: var(--accent);
+      color: #111113;
+      transition: all .2s ease;
+    }
+    .btn-reverse:hover:not(:disabled) {
+      box-shadow: 0 0 32px rgba(200,255,46,.3);
+      transform: translateY(-1px);
+    }
+    .btn-reverse:active:not(:disabled) {
+      transform: translateY(0) scale(.99);
+    }
+    .btn-reverse:disabled {
+      opacity: .2;
+      cursor: not-allowed;
+    }
+
+    /* Copy button */
+    .btn-copy {
+      background: rgba(255,255,255,.05);
+      border: 1px solid var(--border);
+      transition: all .2s;
+    }
+    .btn-copy:hover {
+      background: rgba(255,255,255,.1);
+      border-color: rgba(255,255,255,.15);
+    }
+
+    /* Result */
+    .result-box {
+      background: rgba(200,255,46,.04);
+      border: 1px solid rgba(200,255,46,.1);
+    }
+
+    /* Animations */
+    .pop-in {
+      animation: popIn .3s cubic-bezier(.34,1.56,.64,1);
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(.94) translateY(4px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .toast-in { animation: toastIn .3s ease forwards; }
+    .toast-out { animation: toastOut .3s ease forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes toastOut {
+      from { opacity: 1; transform: translateY(0); }
+      to   { opacity: 0; transform: translateY(8px); }
+    }
+
+    /* Staggered load */
+    .fade-up {
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeUp .6s ease forwards;
+    }
+    @keyframes fadeUp {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .delay-1 { animation-delay: .1s; }
+    .delay-2 { animation-delay: .2s; }
+    .delay-3 { animation-delay: .3s; }
+    .delay-4 { animation-delay: .4s; }
+  </style>
+</head>
+
+<body class="flex items-center justify-center px-4 py-8 font-display text-white antialiased">
+  <div class="blob" aria-hidden="true"></div>
+
+  <main class="relative z-10 w-full max-w-md space-y-6">
+
+    <!-- Header -->
+    <header class="fade-up text-center space-y-1">
+      <p class="text-[11px] font-mono uppercase tracking-[.3em] text-white/30">Utility</p>
+      <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight">
+        Re<span class="text-[var(--accent)]">verse</span>
+      </h1>
+      <p class="text-sm text-white/35 font-light">Type at least 3 characters to begin</p>
+    </header>
+
+    <!-- Card -->
+    <div class="card fade-up delay-2 rounded-2xl p-6 sm:p-8 space-y-5">
+
+      <!-- Input -->
+      <div class="space-y-2">
+        <label for="input" class="block text-[10px] font-mono font-medium uppercase tracking-[.25em] text-white/40">
+          String Input
+        </label>
+        <input
+          id="input"
+          type="text"
+          minlength="3"
+          placeholder="Type something…"
+          autocomplete="off"
+          spellcheck="false"
+          class="input-field w-full rounded-xl px-4 py-3.5 font-mono text-base text-white placeholder:text-white/15"
+        />
+      </div>
+
+      <!-- Reverse Button -->
+      <button
+        id="reverseBtn"
+        disabled
+        class="btn-reverse fade-up delay-3 w-full rounded-xl px-4 py-3.5 text-sm font-bold uppercase tracking-[.15em]"
+      >
+        Reverse ↻
+      </button>
+
+      <!-- Result -->
+      <div class="relative min-h-[68px] fade-up delay-4">
+        <label class="block text-[10px] font-mono font-medium uppercase tracking-[.25em] text-white/40 mb-2">
+          Result
+        </label>
+        <div class="result-box rounded-xl px-4 py-3 min-h-[42px] relative">
+          <div
+            id="result"
+            class="font-mono text-lg text-[var(--accent)] break-all pr-16"
+          ></div>
+
+          <!-- Copy Button -->
+          <button
+            id="copyBtn"
+            class="btn-copy hidden absolute top-1/2 right-2 -translate-y-1/2 rounded-lg px-3 py-1.5 text-[11px] font-mono font-medium text-white/60"
+            title="Copy to clipboard"
+          >
+            <span class="flex items-center gap-1.5">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              Copy
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <p class="fade-up delay-4 text-center text-[10px] font-mono tracking-wider text-white/15">
+      Built with TDD &middot; Jest &middot; Tailwind CSS
+    </p>
+  </main>
+
+  <!-- Toast -->
+  <div
+    id="toast"
+    class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 rounded-full bg-[var(--accent)] px-5 py-2 text-xs font-bold text-[#111] shadow-lg font-mono"
+  ></div>
+
+  <!-- Scripts: reverser.js (pure logic) must load before script.js (DOM controller) -->
+  <script src="reverser.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
